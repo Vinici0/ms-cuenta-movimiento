@@ -5,13 +5,17 @@ import lombok.RequiredArgsConstructor;
 
 import org.borja.springcloud.msvc.account.dtos.account.AccountRequestDto;
 import org.borja.springcloud.msvc.account.dtos.account.AccountResponseDto;
+import org.borja.springcloud.msvc.account.dtos.client.ClientResponseDto;
 import org.borja.springcloud.msvc.account.exceptions.ResourceNotFoundException;
 import org.borja.springcloud.msvc.account.models.Account;
 
 import org.borja.springcloud.msvc.account.repositories.AccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -22,21 +26,31 @@ public class AccountService implements IAccountService {
     private static final Logger log = LoggerFactory.getLogger(AccountService.class);
     private final AccountRepository accountRepository;
 
+    @Value("${microservice.clients.url}")
+    private String clientsServiceUrl;
+
     @Override
     public Mono<AccountResponseDto> addAccount(AccountRequestDto accountDto) {
-        log.info("Adding new account for client ID: {}", accountDto.getClientId());
+        log.info("Creating new account for client: {}", accountDto.getClientId());
 
-        Account account = new Account();
-        account.setAccountType(accountDto.getAccountType());
-        account.setInitialBalance(accountDto.getInitialBalance());
-        account.setClientId(accountDto.getClientId());
-        account.generateAccountNumber();
+        return findClientById(accountDto.getClientId())
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException(
+                        "Client not found with ID: " + accountDto.getClientId())))
+                .flatMap(client -> {
+                    System.out.println("Client: " + client);
+                    Account account = new Account();
+                    account.setAccountType(accountDto.getAccountType());
+                    account.setInitialBalance(accountDto.getInitialBalance());
+                    account.setClientId(accountDto.getClientId());
+                    account.generateAccountNumber();
 
-        return accountRepository.save(account)
-                .map(this::mapToResponseDto)
-                .doOnSuccess(accountResponseDto -> log.info("Account created successfully with account number: {}", accountResponseDto.getAccountNumber()));
+                    return accountRepository.save(account)
+                            .map(this::mapToResponseDto)
+                            .doOnSuccess(accountResponseDto ->
+                                    log.info("Account created successfully with account number: {}",
+                                            accountResponseDto.getAccountNumber()));
+                });
     }
-
 
     @Override
     public Flux<AccountResponseDto> getAllAccounts() {
@@ -82,6 +96,21 @@ public class AccountService implements IAccountService {
                     return accountRepository.save(existingAccount);
                 })
                 .then();
+    }
+
+    private Mono<ClientResponseDto> findClientById(Long clientId) {
+        log.info("Calling clients service at: {}", clientsServiceUrl);
+        return WebClient.create(clientsServiceUrl)
+                .get()
+                .uri("/clientes/{id}", clientId)
+                .accept(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        response -> Mono.error(new ResourceNotFoundException(
+                                "Error calling client service for ID: " + clientId)))
+                .bodyToMono(ClientResponseDto.class)
+                .doOnError(error -> log.error("Error fetching client {}: {}",
+                        clientId, error.getMessage()));
     }
 
     private AccountResponseDto mapToResponseDto(Account account) {
