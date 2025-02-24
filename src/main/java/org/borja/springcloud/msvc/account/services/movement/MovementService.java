@@ -1,7 +1,10 @@
 package org.borja.springcloud.msvc.account.services.movement;
 
 // Java core imports
+
 import lombok.RequiredArgsConstructor;
+import org.borja.springcloud.msvc.account.dtos.client.ClientResponseDto;
+import org.borja.springcloud.msvc.account.dtos.movement.MovementReportDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementRequestDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementResponseDto;
 import org.borja.springcloud.msvc.account.exceptions.InsufficientBalanceException;
@@ -11,6 +14,7 @@ import org.borja.springcloud.msvc.account.models.Movement;
 import org.borja.springcloud.msvc.account.repositories.AccountRepository;
 import org.borja.springcloud.msvc.account.repositories.MovementRepository;
 import org.borja.springcloud.msvc.account.repositories.interfaces.MovementReportProjection;
+import org.borja.springcloud.msvc.account.services.client.WebClientService;
 import org.borja.springcloud.msvc.account.validadors.MovementValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +23,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +34,8 @@ public class MovementService implements IMovementService {
     private final MovementRepository movementRepository;
     private final AccountRepository accountRepository;
     private final MovementValidator movementValidator;
+    private final WebClientService webClientService;
+
 
     @Override
     public Mono<MovementResponseDto> addMovement(MovementRequestDto movRequest) {
@@ -127,17 +135,6 @@ public class MovementService implements IMovementService {
                 });
     }
 
-    // Para revertir el movimiento, se "deshace" su efecto restando el monto previamente aplicado.
-    private double reverseMovement(double currentBalance, double amount) {
-        return currentBalance - amount;
-    }
-
-    private void updateMovementDetails(Movement movement, MovementRequestDto request, double balance) {
-        movement.setMovementType(request.getMovementType());
-        movement.setAmount(request.getAmount());
-        movement.setDate(LocalDate.now());
-        movement.setBalance(balance);
-    }
 
     @Override
     public Mono<Void> deleteMovement(Long id) {
@@ -149,10 +146,54 @@ public class MovementService implements IMovementService {
     }
 
     @Override
-    public Flux<MovementReportProjection> getCustomReport(LocalDate startDate, LocalDate endDate, Long clientId) {
-        log.info("Generating movement report for client ID: {} from {} to {}", clientId, startDate, endDate);
-        return movementRepository.findAllInRangeNative(startDate, endDate, clientId);
+    public Flux<MovementReportDto> getCustomReport(LocalDate startDate, LocalDate endDate, Long clientId) {
+        log.info("Generando reporte de movimientos para el cliente ID: {} desde {} hasta {}", clientId, startDate, endDate);
+
+        Mono<ClientResponseDto> clientMono = webClientService.findClientById(clientId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Cliente no encontrado: " + clientId)));
+
+        return clientMono.flatMapMany(client ->
+                        accountRepository.findByClientId(clientId)
+                                .flatMap(account ->
+                                        movementRepository.findByAccountIdAndDateBetween(account.getId(), startDate, endDate)
+                                                // Ordenamos los movimientos por fecha ascendente para el cálculo acumulativo
+                                                .sort(Comparator.comparing(Movement::getDate))
+                                                .collectList()
+                                                .flatMapMany(movements -> {
+                                                    // Definir el saldo inicial del período.
+                                                    // Si no hay movimientos, se toma el saldo actual de la cuenta.
+                                                    double saldoInicialPeriodo = movements.isEmpty() ? account.getInitialBalance() : movements.get(0).getBalance();
+                                                    // Usamos un arreglo mutable para acumular el saldo (alternativamente se puede usar scan en Flux)
+                                                    double[] saldoAcumulado = { saldoInicialPeriodo };
+
+                                                    return Flux.fromIterable(movements)
+                                                            .map(movement -> {
+                                                                double saldoAntesMovimiento = saldoAcumulado[0];
+                                                                // Calculamos el saldo posterior al movimiento
+                                                                double nuevoSaldo = saldoAntesMovimiento + movement.getAmount();
+                                                                // Actualizamos el saldo acumulado para el siguiente movimiento
+                                                                saldoAcumulado[0] = nuevoSaldo;
+
+                                                                return MovementReportDto.builder()
+                                                                        .fecha(movement.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                                                                        .cliente(client.getName()) // Asegúrate que ClientResponseDto tenga el getter correcto
+                                                                        .numeroCuenta(account.getAccountNumber())
+                                                                        .tipo(account.getAccountType().toString())
+                                                                        // Se muestra el saldo antes del movimiento (saldo inicial para ese registro)
+                                                                        .saldoInicial(saldoAntesMovimiento)
+                                                                        .estado(account.getStatus())
+                                                                        .movimiento(movement.getAmount())
+                                                                        // Se muestra el saldo luego de aplicar el movimiento
+                                                                        .saldoDisponible(nuevoSaldo)
+                                                                        .build();
+                                                            });
+                                                })
+                                )
+                )
+                // Si se requiere presentar el reporte en orden descendente por fecha, se puede ordenar al final.
+                .sort(Comparator.comparing(MovementReportDto::getFecha).reversed());
     }
+
 
     private Mono<MovementResponseDto> mapToResponseDto(Movement movement) {
         return accountRepository.findById(movement.getAccountId())
@@ -174,6 +215,17 @@ public class MovementService implements IMovementService {
                 .amount(request.getAmount())
                 .balance(initialBalance)
                 .build();
+    }
+
+    private double reverseMovement(double currentBalance, double amount) {
+        return currentBalance - amount;
+    }
+
+    private void updateMovementDetails(Movement movement, MovementRequestDto request, double balance) {
+        movement.setMovementType(request.getMovementType());
+        movement.setAmount(request.getAmount());
+        movement.setDate(LocalDate.now());
+        movement.setBalance(balance);
     }
 
     // Método para calcular el nuevo saldo:

@@ -10,6 +10,7 @@ import org.borja.springcloud.msvc.account.exceptions.ResourceNotFoundException;
 import org.borja.springcloud.msvc.account.models.Account;
 
 import org.borja.springcloud.msvc.account.repositories.AccountRepository;
+import org.borja.springcloud.msvc.account.services.client.WebClientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ public class AccountService implements IAccountService {
 
     private static final Logger log = LoggerFactory.getLogger(AccountService.class);
     private final AccountRepository accountRepository;
+    private final WebClientService webClientService;
 
     @Value("${microservice.clients.url}")
     private String clientsServiceUrl;
@@ -33,7 +35,7 @@ public class AccountService implements IAccountService {
     public Mono<AccountResponseDto> addAccount(AccountRequestDto accountDto) {
         log.info("Creating new account for client: {}", accountDto.getClientId());
 
-        return findClientById(accountDto.getClientId())
+        return webClientService.findClientById(accountDto.getClientId())
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException(
                         "Client not found with ID: " + accountDto.getClientId())))
                 .flatMap(client -> {
@@ -98,20 +100,6 @@ public class AccountService implements IAccountService {
                 .then();
     }
 
-    private Mono<ClientResponseDto> findClientById(Long clientId) {
-        log.info("Calling clients service at: {}", clientsServiceUrl);
-        return WebClient.create(clientsServiceUrl)
-                .get()
-                .uri("/clientes/{id}", clientId)
-                .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                        response -> Mono.error(new ResourceNotFoundException(
-                                "Error calling client service for ID: " + clientId)))
-                .bodyToMono(ClientResponseDto.class)
-                .doOnError(error -> log.error("Error fetching client {}: {}",
-                        clientId, error.getMessage()));
-    }
 
     private AccountResponseDto mapToResponseDto(Account account) {
         return AccountResponseDto.builder()

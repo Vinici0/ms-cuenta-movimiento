@@ -1,6 +1,7 @@
 package org.borja.springcloud.msvc.account.controllers;
 
 import lombok.RequiredArgsConstructor;
+import org.borja.springcloud.msvc.account.dtos.movement.MovementReportDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementRequestDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementResponseDto; // Importa MovementResponseDto
 import org.borja.springcloud.msvc.account.services.movement.IMovementService;
@@ -55,15 +56,19 @@ public class MovementRouter {
                         request -> movementService.deleteMovement(Long.parseLong(request.pathVariable("id")))
                                 .then(ServerResponse.noContent().build()))
 
-                .andRoute(GET("/api/movimientos/report").and(accept(MediaType.APPLICATION_JSON)),
+                .andRoute(GET("/api/reportes").and(accept(MediaType.APPLICATION_JSON)),
                         request -> {
-                            LocalDate startDate = LocalDate.parse(request.queryParam("startDate").orElse(""));
-                            LocalDate endDate = LocalDate.parse(request.queryParam("endDate").orElse(""));
-                            Long clientId = Long.parseLong(request.queryParam("clientId").orElse("0"));
+                            LocalDate startDate = LocalDate.parse(request.queryParam("fechaInicio")
+                                    .orElseThrow(() -> new IllegalArgumentException("fechaInicio is required")));
+                            LocalDate endDate = LocalDate.parse(request.queryParam("fechaFin")
+                                    .orElseThrow(() -> new IllegalArgumentException("fechaFin is required")));
+                            Long clientId = Long.parseLong(request.queryParam("clientId")
+                                    .orElseThrow(() -> new IllegalArgumentException("clientId is required")));
 
                             return ServerResponse.ok()
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .body(movementService.getCustomReport(startDate, endDate, clientId), MovementResponseDto.class);
+                                    .body(movementService.getCustomReport(startDate, endDate, clientId),
+                                            MovementReportDto.class);
                         });
     }
 
