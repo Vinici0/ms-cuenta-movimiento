@@ -31,7 +31,7 @@ public class WebClientService {
         log.info("Calling clients service for client ID: {}", clientId);
         return webClient
                 .get()
-                .uri("/clientes/{id}", clientId)
+                .uri("/api/clientes/{id}", clientId)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
