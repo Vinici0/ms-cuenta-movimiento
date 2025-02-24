@@ -23,6 +23,6 @@ public class Movement {
     private Double amount;
     private Double balance;
 
-    @MappedCollection(idColumn = "account_id")
-    private Account account;
+    @Column("account_id")
+    private Long accountId;
 }
