@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: msvc_users_app
+    container_name: msvc_account_app
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
@@ -23,7 +23,7 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: postgres_data_users_app
+    container_name: postgres_data_account
     ports:
       - "${DB_PORT}:5432"
     environment:
