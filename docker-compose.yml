@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: testcodevinicio2/ms-cuenta:latest
     container_name: msvc_account_app
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
@@ -17,7 +15,7 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      # Cambiar la URL para que apunte al servicio de proyecto 2
+      # Cambiar la URL para que apunte al servicio de proyecto 2 (ajusta según tu red)
       - MICROSERVICE_CLIENTS_URL=http://192.168.1.22:9292
     depends_on:
       - postgres
