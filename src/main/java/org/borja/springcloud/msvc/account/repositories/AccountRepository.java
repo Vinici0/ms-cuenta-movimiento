@@ -10,5 +10,5 @@ import reactor.core.publisher.Mono;
 public interface AccountRepository extends ReactiveCrudRepository<Account, Long> {
     Mono<Account> findByAccountNumber(String accountNumber);
     Flux<Account> findAccountsByStatus(Boolean status);
-    Mono<Account> findByIdAndStatus(Long id, Boolean status);
+    Flux<Account> findByClientId(Long clientId);
 }
