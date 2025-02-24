@@ -1,7 +1,6 @@
 package org.borja.springcloud.msvc.account.services.movement;
 
 // Java core imports
-
 import lombok.RequiredArgsConstructor;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementRequestDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementResponseDto;
@@ -38,28 +37,45 @@ public class MovementService implements IMovementService {
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException(
                         "Account not found: " + movRequest.getAccountNumber())))
                 .flatMap(account -> {
-                    double initialBalance = account.getInitialBalance();
-                    double newBalance = initialBalance + movRequest.getAmount();
+                    // Obtener el saldo actual y el monto del movimiento
+                    double currentBalance = account.getInitialBalance();
+                    double amount = movRequest.getAmount();
 
+                    // Calcular el nuevo saldo sumando el valor del movimiento (positivo o negativo)
+                    double newBalance = calculateNewBalance(currentBalance, amount);
+
+                    // Validar el balance antes de proceder
                     if (!movementValidator.isValidBalance(newBalance)) {
-                        return Mono.error(new InsufficientBalanceException("Insufficient balance"));
+                        return Mono.error(new InsufficientBalanceException(
+                                String.format("Insufficient balance. Current: %.2f, Requested: %.2f", currentBalance, amount)));
                     }
 
+                    // Actualizar el saldo de la cuenta
                     account.setInitialBalance(newBalance);
-                    Movement movement = createNewMovement(account, movRequest, initialBalance);
 
+                    // Crear el movimiento (se guarda el saldo anterior al movimiento)
+                    Movement movement = Movement.builder()
+                            .accountId(account.getId())
+                            .date(LocalDate.now())
+                            .movementType(movRequest.getMovementType())
+                            .amount(amount)
+                            .balance(currentBalance)
+                            .build();
+
+                    // Guardar la cuenta y el movimiento
                     return accountRepository.save(account)
                             .then(movementRepository.save(movement))
-                            .map(this::mapToResponseDto);
-                })
-                .doOnSuccess(mov -> log.info("Movement added successfully"));
+                            .flatMap(this::mapToResponseDto)
+                            .doOnSuccess(mov -> log.info("Movement successfully added. New balance: {}", newBalance))
+                            .doOnError(error -> log.error("Error adding movement: {}", error.getMessage()));
+                });
     }
 
     @Override
     public Flux<MovementResponseDto> getAllMovements() {
         log.info("Fetching all movements");
         return movementRepository.findAll()
-                .map(this::mapToResponseDto);
+                .flatMap(this::mapToResponseDto);
     }
 
     @Override
@@ -68,31 +84,59 @@ public class MovementService implements IMovementService {
         return movementRepository.findById(id)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException(
                         "Movement not found with ID: " + id)))
-                .map(this::mapToResponseDto);
+                .flatMap(this::mapToResponseDto);
     }
 
     @Override
     public Mono<MovementResponseDto> updateMovement(Long id, MovementRequestDto movRequest) {
-        log.info("Updating movement with ID: {}", id);
+        log.info("Updating movement with ID: {} for account: {}", id, movRequest.getAccountNumber());
+
         return movementRepository.findById(id)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException(
                         "Movement not found with ID: " + id)))
                 .flatMap(existingMovement -> {
-                    Account account = existingMovement.getAccount();
-                    double balanceAfterReversal = account.getInitialBalance() - existingMovement.getAmount();
-                    double newBalance = balanceAfterReversal + movRequest.getAmount();
+                    return accountRepository.findById(existingMovement.getAccountId())
+                            .switchIfEmpty(Mono.error(new ResourceNotFoundException(
+                                    "Account not found with ID: " + existingMovement.getAccountId())))
+                            .flatMap(account -> {
+                                // Revertir el efecto del movimiento anterior:
+                                // Dado que se había sumado (o restado) el monto, para revertir basta con restarlo.
+                                double balanceAfterReversal = reverseMovement(account.getInitialBalance(), existingMovement.getAmount());
 
-                    if (!movementValidator.isValidBalance(newBalance)) {
-                        return Mono.error(new InsufficientBalanceException("Insufficient balance"));
-                    }
+                                // Calcular el nuevo saldo aplicando el nuevo movimiento
+                                double newBalance = calculateNewBalance(balanceAfterReversal, movRequest.getAmount());
 
-                    account.setInitialBalance(newBalance);
-                    updateMovementDetails(existingMovement, movRequest, balanceAfterReversal);
+                                // Validar el saldo resultante
+                                if (!movementValidator.isValidBalance(newBalance)) {
+                                    return Mono.error(new InsufficientBalanceException(
+                                            String.format("Insufficient balance. Current: %.2f, Requested: %.2f", balanceAfterReversal, movRequest.getAmount())
+                                    ));
+                                }
 
-                    return accountRepository.save(account)
-                            .then(movementRepository.save(existingMovement))
-                            .map(this::mapToResponseDto);
+                                // Actualizar la cuenta y los detalles del movimiento
+                                account.setInitialBalance(newBalance);
+                                updateMovementDetails(existingMovement, movRequest, balanceAfterReversal);
+
+                                // Guardar los cambios en transacción
+                                return accountRepository.save(account)
+                                        .then(movementRepository.save(existingMovement))
+                                        .flatMap(this::mapToResponseDto)
+                                        .doOnSuccess(mov -> log.info("Movement successfully updated. New balance: {}", newBalance))
+                                        .doOnError(error -> log.error("Error updating movement: {}", error.getMessage()));
+                            });
                 });
+    }
+
+    // Para revertir el movimiento, se "deshace" su efecto restando el monto previamente aplicado.
+    private double reverseMovement(double currentBalance, double amount) {
+        return currentBalance - amount;
+    }
+
+    private void updateMovementDetails(Movement movement, MovementRequestDto request, double balance) {
+        movement.setMovementType(request.getMovementType());
+        movement.setAmount(request.getAmount());
+        movement.setDate(LocalDate.now());
+        movement.setBalance(balance);
     }
 
     @Override
@@ -110,20 +154,21 @@ public class MovementService implements IMovementService {
         return movementRepository.findAllInRangeNative(startDate, endDate, clientId);
     }
 
-    private MovementResponseDto mapToResponseDto(Movement movement) {
-        return MovementResponseDto.builder()
-                .id(movement.getId())
-                .date(movement.getDate())
-                .movementType(movement.getMovementType())
-                .amount(movement.getAmount())
-                .balance(movement.getBalance())
-                .accountNumber(movement.getAccount().getAccountNumber())
-                .build();
+    private Mono<MovementResponseDto> mapToResponseDto(Movement movement) {
+        return accountRepository.findById(movement.getAccountId())
+                .map(account -> MovementResponseDto.builder()
+                        .id(movement.getId())
+                        .date(movement.getDate())
+                        .movementType(movement.getMovementType())
+                        .amount(movement.getAmount())
+                        .balance(movement.getBalance())
+                        .accountNumber(account.getAccountNumber())
+                        .build());
     }
 
     private Movement createNewMovement(Account account, MovementRequestDto request, double initialBalance) {
         return Movement.builder()
-                .account(account)
+                .accountId(account.getId())
                 .date(LocalDate.now())
                 .movementType(request.getMovementType())
                 .amount(request.getAmount())
@@ -131,10 +176,9 @@ public class MovementService implements IMovementService {
                 .build();
     }
 
-    private void updateMovementDetails(Movement movement, MovementRequestDto request, double balance) {
-        movement.setMovementType(request.getMovementType());
-        movement.setAmount(request.getAmount());
-        movement.setDate(LocalDate.now());
-        movement.setBalance(balance);
+    // Método para calcular el nuevo saldo:
+    // Se suma el valor del movimiento (positivo para depósitos, negativo para retiros).
+    private double calculateNewBalance(double currentBalance, double amount) {
+        return currentBalance + amount;
     }
 }
