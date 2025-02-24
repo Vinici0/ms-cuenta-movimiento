@@ -17,7 +17,8 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - MICROSERVICE_CLIENTS_URL=${MICROSERVICE_CLIENTS_URL}
+      # Cambiar la URL para que apunte al servicio de proyecto 2
+      - MICROSERVICE_CLIENTS_URL=http://192.168.1.22:9292
     depends_on:
       - postgres
     networks:
@@ -39,7 +40,7 @@ services:
 
 networks:
   mynetwork:
-    driver: bridge
+    external: true
 
 volumes:
   postgres_data:
