@@ -1,7 +1,6 @@
 package org.borja.springcloud.msvc.account.validadors;
 
 import lombok.RequiredArgsConstructor;
-import org.borja.springcloud.msvc.account.exceptions.InsufficientBalanceException;
 import org.springframework.stereotype.Component;
 
 @Component

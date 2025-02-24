@@ -1,7 +1,6 @@
 package org.borja.springcloud.msvc.account.services.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.borja.springcloud.msvc.account.dtos.client.ClientResponseDto;
 import org.borja.springcloud.msvc.account.exceptions.ResourceNotFoundException;
 import org.borja.springcloud.msvc.account.response.ApiResponse;
@@ -13,7 +12,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Component
 public class WebClientService {

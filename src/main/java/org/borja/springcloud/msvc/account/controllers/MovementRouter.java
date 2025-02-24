@@ -3,7 +3,7 @@ package org.borja.springcloud.msvc.account.controllers;
 import lombok.RequiredArgsConstructor;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementReportDto;
 import org.borja.springcloud.msvc.account.dtos.movement.MovementRequestDto;
-import org.borja.springcloud.msvc.account.dtos.movement.MovementResponseDto; // Importa MovementResponseDto
+import org.borja.springcloud.msvc.account.dtos.movement.MovementResponseDto; 
 import org.borja.springcloud.msvc.account.services.movement.IMovementService;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -36,7 +36,7 @@ public class MovementRouter {
                 .andRoute(GET("/api/movimientos").and(accept(MediaType.APPLICATION_JSON)),
                         request -> ServerResponse.ok()
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .body(movementService.getAllMovements(), MovementResponseDto.class)) // Usa MovementResponseDto
+                                .body(movementService.getAllMovements(), MovementResponseDto.class))
 
                 .andRoute(GET("/api/movimientos/{id}").and(accept(MediaType.APPLICATION_JSON)),
                         request -> movementService.getMovementById(Long.parseLong(request.pathVariable("id")))
