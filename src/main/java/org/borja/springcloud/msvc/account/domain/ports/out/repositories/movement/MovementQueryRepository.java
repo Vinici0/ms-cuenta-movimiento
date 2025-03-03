@@ -1,4 +1,4 @@
-package org.borja.springcloud.msvc.account.domain.ports.out.repositories;
+package org.borja.springcloud.msvc.account.domain.ports.out.repositories.movement;
 
 import org.borja.springcloud.msvc.account.domain.models.Movement;
 import reactor.core.publisher.Flux;
