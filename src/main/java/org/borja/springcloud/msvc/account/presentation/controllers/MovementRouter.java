@@ -1,18 +1,11 @@
 package org.borja.springcloud.msvc.account.presentation.controllers;
 
-
 import lombok.RequiredArgsConstructor;
-import org.borja.springcloud.msvc.account.application.movement.IMovementReportService;
-import org.borja.springcloud.msvc.account.application.movement.IMovementService;
-import org.borja.springcloud.msvc.account.application.movement.dtos.MovementReportDto;
-import org.borja.springcloud.msvc.account.application.movement.dtos.MovementRequestDto;
-import org.borja.springcloud.msvc.account.application.movement.dtos.MovementResponseDto;
 import org.borja.springcloud.msvc.account.presentation.handler.MovementHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.server.*;
-import java.time.LocalDate;
 
 @Configuration
 @RequiredArgsConstructor

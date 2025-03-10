@@ -1,17 +1,10 @@
 package org.borja.springcloud.msvc.account.presentation.controllers;
 
-
 import lombok.RequiredArgsConstructor;
-import org.borja.springcloud.msvc.account.application.account.IAccountService;
-import org.borja.springcloud.msvc.account.application.account.dtos.AccountRequestDto;
-import org.borja.springcloud.msvc.account.application.account.dtos.AccountResponseDto;
 import org.borja.springcloud.msvc.account.presentation.handler.AccountHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.reactive.function.server.RequestPredicates;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
