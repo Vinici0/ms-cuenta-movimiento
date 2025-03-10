@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.borja.springcloud.msvc.account.application.account.IAccountService;
 import org.borja.springcloud.msvc.account.application.account.dtos.AccountRequestDto;
 import org.borja.springcloud.msvc.account.application.account.dtos.AccountResponseDto;
+import org.borja.springcloud.msvc.account.presentation.handler.AccountHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -20,34 +21,22 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 @RequiredArgsConstructor
 public class AccountRouter {
 
-    private final IAccountService accountService;
+    private final AccountHandler accountHandler;
 
     @Bean
     public RouterFunction<ServerResponse> accountRoutes() {
         return RouterFunctions
-                .route(RequestPredicates.GET("/api/cuentas").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
-                        request -> ServerResponse.ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .body(accountService.getAllAccounts(), AccountResponseDto.class))
+                .route(RequestPredicates.GET("/api/cuentas")
+                                .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                        accountHandler::getAllAccounts)
                 .andRoute(RequestPredicates.GET("/api/cuentas/{accountNumber}"),
-                        request -> accountService.getAccountByNumber(request.pathVariable("accountNumber"))
-                                .flatMap(account -> ServerResponse.ok()
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(account)))
-                .andRoute(RequestPredicates.PUT("/api/cuentas/{accountNumber}").and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
-                        request -> request.bodyToMono(AccountRequestDto.class)
-                                .flatMap(accountDto -> accountService.updateAccount(request.pathVariable("accountNumber"), accountDto))
-                                .flatMap(account -> ServerResponse.ok()
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(account)))
+                        accountHandler::getAccountByNumber)
+                .andRoute(RequestPredicates.PUT("/api/cuentas/{accountNumber}")
+                                .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                        accountHandler::updateAccount)
                 .andRoute(RequestPredicates.POST("/api/cuentas"),
-                        request -> request.bodyToMono(AccountRequestDto.class)
-                                .flatMap(accountService::addAccount)
-                                .flatMap(account -> ServerResponse.ok()
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(account)))
+                        accountHandler::addAccount)
                 .andRoute(RequestPredicates.DELETE("/api/cuentas/{accountNumber}"),
-                        request -> accountService.deleteAccount(request.pathVariable("accountNumber"))
-                                .then(ServerResponse.noContent().build()));
+                        accountHandler::deleteAccount);
     }
 }
