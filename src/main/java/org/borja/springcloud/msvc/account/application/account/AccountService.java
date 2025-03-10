@@ -7,6 +7,7 @@ import org.borja.springcloud.msvc.account.application.exceptions.ResourceNotFoun
 import org.borja.springcloud.msvc.account.domain.models.Account;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.account.AccountQueryRepository;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.account.AccountRepository;
+import org.borja.springcloud.msvc.account.domain.ports.out.repositories.client.IWebClientService;
 import org.borja.springcloud.msvc.account.infrastructure.adapters.client.WebClientService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,7 @@ public class AccountService implements IAccountService {
 
     private final AccountRepository accountRepository;
     private final AccountQueryRepository accountQueryRepository;
-    private final WebClientService webClientService;
+    private final IWebClientService webClientService;
 
     @Value("${microservice.clients.url}")
     private String clientsServiceUrl;

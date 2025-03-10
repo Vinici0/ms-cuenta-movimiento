@@ -10,6 +10,7 @@ import org.borja.springcloud.msvc.account.domain.models.Account;
 import org.borja.springcloud.msvc.account.domain.models.Movement;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.account.AccountQueryRepository;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.account.AccountRepository;
+import org.borja.springcloud.msvc.account.domain.ports.out.repositories.client.IWebClientService;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.movement.MovementQueryRepository;
 import org.borja.springcloud.msvc.account.domain.ports.out.repositories.movement.MovementRepository;
 import org.borja.springcloud.msvc.account.domain.validator.MovementValidator;
@@ -40,7 +41,7 @@ public class MovementService implements IMovementService, IMovementReportService
     private final MovementQueryRepository movementQueryRepositoryRepository;
     private final AccountRepository accountRepository;
     private final AccountQueryRepository accountQueryRepository;
-    private final WebClientService webClientService;
+    private final IWebClientService webClientService;
     private final MovementValidator movementValidator;
 
 
