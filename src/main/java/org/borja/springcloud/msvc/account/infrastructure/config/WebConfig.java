@@ -1,4 +1,4 @@
-package org.borja.springcloud.msvc.account.config;
+package org.borja.springcloud.msvc.account.infrastructure.config;
 
 import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.context.annotation.Bean;

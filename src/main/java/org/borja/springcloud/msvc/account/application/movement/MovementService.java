@@ -28,8 +28,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 // Clases del Proyecto
-import org.borja.springcloud.msvc.account.exceptions.InsufficientBalanceException;
-import org.borja.springcloud.msvc.account.exceptions.ResourceNotFoundException;
+import org.borja.springcloud.msvc.account.domain.exceptions.InsufficientBalanceException;
+import org.borja.springcloud.msvc.account.domain.exceptions.ResourceNotFoundException;
 
 @Service
 @RequiredArgsConstructor

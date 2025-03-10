@@ -1,6 +1,6 @@
 package org.borja.springcloud.msvc.account.domain.validator;
 
-import org.borja.springcloud.msvc.account.exceptions.InsufficientBalanceException;
+import org.borja.springcloud.msvc.account.domain.exceptions.InsufficientBalanceException;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

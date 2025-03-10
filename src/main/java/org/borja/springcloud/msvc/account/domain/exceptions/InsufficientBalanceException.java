@@ -1,4 +1,4 @@
-package org.borja.springcloud.msvc.account.exceptions;
+package org.borja.springcloud.msvc.account.domain.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
